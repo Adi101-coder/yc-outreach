@@ -14,8 +14,9 @@ Python 3.9+, standard library only. Nothing to install.
 
 1. **Pick a batch** (Summer 2005 through the latest) from YC's public directory.
 2. **Founders load 20 companies at a time** (about 5–10 s per 20); click **Load more** for the next 20. For each
-   company the server reads its ycombinator.com page for the founders' names, titles, LinkedIn and X. Loaded
-   companies are kept in your browser, so reopening a batch is instant.
+   company the server reads its ycombinator.com page for the founders' names, titles, LinkedIn and X, and for how
+   many roles that company has open on YC (title and link for each). Loaded companies are kept in your browser, so
+   reopening a batch is instant. Check **hiring** to hide companies with no open roles.
 3. **Emails are filled in** for each founder, best source first:
 
    | Label | Source | Reliability |
@@ -81,6 +82,7 @@ the batch.
 ```json
 [{"slug": "indemni", "website": "http://www.indemni.com", "domain": "indemni.com",
   "linkedin": "https://www.linkedin.com/company/...", "twitter": "", "site_emails": [],
+  "job_count": 1, "jobs": [{"title": "Founding Engineer", "url": "https://www.ycombinator.com/companies/indemni/jobs/..."}],
   "founders": [{"name": "Omar Draz", "title": "Founder", "linkedin": "https://linkedin.com/in/odraz",
                 "twitter": "https://twitter.com/oamdraz", "emails_found": [],
                 "email_guesses": ["omar@indemni.com", "omar.draz@indemni.com", "odraz@indemni.com", "omardraz@indemni.com"]}]}]
@@ -93,8 +95,9 @@ domain doesn't resolve.
 
 - **Batches and companies:** YC's public company search (Algolia). The read-only search key is read from
   `ycombinator.com/companies` at runtime, so no key is stored here.
-- **Founders:** the `data-page` JSON embedded in each `ycombinator.com/companies/<slug>` page. Browsers can't fetch
-  these cross-origin, which is why this part runs on a server.
+- **Founders and open roles:** the `data-page` JSON embedded in each `ycombinator.com/companies/<slug>` page
+  (`props.company` and `props.jobPostings`). Incomplete postings are skipped. Browsers can't fetch these
+  cross-origin, which is why this part runs on a server.
 - **Verified emails (optional):** the Apify actor
   [`snipercoder/email-finder-by-name-and-domain`](https://apify.com/snipercoder/email-finder-by-name-and-domain),
   called **from the browser** with the visitor's own token, so the token never reaches the server. Results are
