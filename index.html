@@ -15,13 +15,14 @@ textarea{min-height:260px;resize:vertical;line-height:1.5}
 .ph{font-size:13px;color:var(--muted);margin:8px 0 0}.ph code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:0 5px;margin-right:4px;cursor:pointer}
 .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}.row2 select,.row2 input{width:auto;flex:1;min-width:160px}
 .status{font-size:13px;color:var(--muted);margin:10px 0 0;min-height:1.5em}.status.err{color:var(--err)}
-.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:1;align-items:center}
-.bar input{flex:1;min-width:180px;width:auto;background:var(--card)}.bar select{width:auto;background:var(--card)}
-.chk{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);white-space:nowrap}.chk input{width:auto}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:1;align-items:center}
+.bar #q{flex:1;min-width:180px;width:auto;background:var(--card)}.bar select{width:auto;background:var(--card)}.bar #all{margin-left:auto}
+.chk{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);white-space:nowrap;cursor:pointer;user-select:none}.chk input{width:auto;flex:none;margin:0;cursor:pointer}
 details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}details.sent{opacity:.55}
 summary{cursor:pointer;padding:12px 14px;display:flex;gap:10px;align-items:center;list-style:none}summary::-webkit-details-marker{display:none}
 summary::before{content:"▸";color:var(--muted)}details[open] summary::before{content:"▾"}
 .name{font-weight:600}.meta{color:var(--muted);font-size:13px;margin-left:auto;text-align:right}
+.meta .roles{color:var(--accent);font-weight:600}
 .badge{font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
 .valid{color:var(--ok)}.unknown,.guess{color:var(--warn)}.site{color:var(--accent)}.none{color:var(--muted)}
 .body{padding:0 14px 14px;border-top:1px solid var(--line)}.r{margin:10px 0 0;font-size:14px;overflow-wrap:anywhere}.r b{color:var(--muted);font-weight:500;display:inline-block;width:64px}
@@ -77,6 +78,7 @@ footer{color:var(--muted);font-size:13px;margin-top:32px}
   <input id="q" placeholder="Search company or founder" aria-label="Search">
   <select id="st" aria-label="Email type"><option value="">All emails</option><option value="valid">Verified</option><option value="unknown">Unverified</option><option value="site">Found on site</option><option value="guess">Guess</option><option value="none">No email</option></select>
   <label class="chk"><input type="checkbox" id="hideSent"> hide sent</label>
+  <label class="chk"><input type="checkbox" id="hiring"> hiring</label>
   <button id="all" type="button">Expand all</button>
 </div>
 <p class="sub" id="shown" style="margin:0 0 10px"></p>
@@ -145,16 +147,31 @@ function fill(text, c) {
   return out.split("\n").filter(l => !/^\s*[\w ]+:\s*$/.test(l)).join("\n");
 }
 
+function rolesLine(c) {
+  if (!c.job_count) return "";
+  const word = c.job_count === 1 ? "open role" : "open roles";
+  return `<br><span class="roles">${c.job_count} ${word}</span>`;
+}
+function jobsRow(c) {
+  if (c.job_count == null) return "";
+  if (!c.job_count) return `<div class="r"><b>Jobs</b>No open roles on YC</div>`;
+  const links = (c.jobs || []).map(j => j.url
+    ? `<a class="lnk" href="${url(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>`
+    : esc(j.title)).join(" · ");
+  return `<div class="r"><b>Jobs</b>${c.job_count} open on YC${links ? ` · ${links}` : ""}</div>`;
+}
+
 function render() {
   $("list").innerHTML = DATA.map((c, i) => {
     const fs = contacts(c), f = fs[0], b = f ? best(f) : { kind: c.founders ? "none" : "", label: c.error ? "error" : c.founders ? "no email" : "loading…" };
     const key = (c.name + " " + fs.map(o => o.name).join(" ")).toLowerCase();
-    return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" class="${sent.has(c.name) ? "sent" : ""}">
+    return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" data-jobs="${c.job_count == null ? "" : c.job_count}" class="${sent.has(c.name) ? "sent" : ""}">
       <summary><span class="name">${esc(c.name)}</span><span class="badge ${b.kind || "none"}">${esc(b.label)}</span>
-      <span class="meta">${esc(f?.name || "")}<br>${esc(c.batch)}</span></summary>
+      <span class="meta">${esc(f?.name || "")}<br>${esc(c.batch)}${rolesLine(c)}</span></summary>
       <div class="body">
         <p class="one">${esc(c.one_liner)}${url(c.website) ? ` · <a class="lnk" href="${url(c.website)}" target="_blank" rel="noopener">website</a>` : ""} · <a class="lnk" href="https://www.ycombinator.com/companies/${esc(c.slug)}" target="_blank" rel="noopener">YC</a>${url(f?.linkedin) ? ` · <a class="lnk" href="${url(f.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}${url(f?.twitter) ? ` · <a class="lnk" href="${url(f.twitter)}" target="_blank" rel="noopener">X</a>` : ""}</p>
         ${c.error ? `<p class="status err">${esc(c.error)}</p>` : ""}
+        ${jobsRow(c)}
         ${fs.map(o => { const e = best(o); return `<div class="r"><b>${o === f ? "To" : "Also"}</b>${esc(o.name)}${o.title ? ` (${esc(o.title)})` : ""} · ${esc(e.email || "no email")} <span class="badge ${e.kind}">${e.label}</span></div>` }).join("")}
         <div class="r"><b>Subject</b><span class="subj"></span></div>
         <pre></pre>
@@ -179,10 +196,11 @@ function draft(d) {
 function update() { document.querySelectorAll("details[open]").forEach(draft) }
 
 function filter() {
-  const q = $("q").value.trim().toLowerCase(), st = $("st").value, hide = $("hideSent").checked;
+  const q = $("q").value.trim().toLowerCase(), st = $("st").value, hide = $("hideSent").checked, hiring = $("hiring").checked;
   let n = 0;
   document.querySelectorAll("details").forEach(d => {
-    const ok = (!q || d.dataset.k.includes(q)) && (!st || d.dataset.s === st) && !(hide && d.classList.contains("sent"));
+    const ok = (!q || d.dataset.k.includes(q)) && (!st || d.dataset.s === st) && !(hide && d.classList.contains("sent"))
+      && (!hiring || +d.dataset.jobs > 0);
     d.style.display = ok ? "" : "none"; n += ok;
   });
   $("shown").textContent = DATA.length ? `${n} of ${DATA.length} shown · ${sent.size} sent` : "";
@@ -192,9 +210,12 @@ function filter() {
 const PAGE = 20;
 const save = () => store.set(`${KEY}-batch-${batch}`, ALL);
 const busy = on => { $("load").disabled = $("more").disabled = on; $("enrich").disabled = on || !DATA.length };
+// A company still needs a fetch when founders are missing, or when an older cache has founders but no job count
+function needsFetch(c) { return !c.error && (!c.founders || c.job_count == null) }
 function progress() {
-  const left = ALL.length - DATA.length, failed = DATA.filter(c => c.error).length;
-  say("loadStatus", `${DATA.length} of ${ALL.length} companies loaded${failed ? `, ${failed} couldn't be loaded` : ""}.`, failed > 0);
+  const left = ALL.filter(needsFetch).length, failed = DATA.filter(c => c.error).length;
+  const hiring = DATA.filter(c => c.job_count > 0).length;
+  say("loadStatus", `${DATA.length} of ${ALL.length} companies loaded${failed ? `, ${failed} couldn't be loaded` : ""}. ${hiring} with open roles on YC.`, failed > 0);
   $("more").hidden = !left;
   $("more").textContent = `Load ${Math.min(PAGE, left)} more (${left} left)`;
 }
@@ -216,22 +237,35 @@ async function loadBatch() {
   }
   DATA = ALL.filter(c => c.founders || c.error);
   render();
-  if (!DATA.length) return loadMore();
+  // Fetch on open only for an empty batch, or to fill job counts missing from an older cache
+  const stale = ALL.some(c => c.founders && c.job_count == null && !c.error);
+  if (!DATA.length || stale) return loadMore();
   progress(); busy(false);
 }
 
 // Founders come from each company's YC page, so load them PAGE at a time: 10 per request, 2 requests at once
+function mergeCompany(target, fresh) {
+  const prev = new Map((target.founders || []).filter(f => f.apify_checked).map(f => [f.name, f]));
+  Object.assign(target, fresh);
+  for (const f of target.founders || []) {
+    const old = prev.get(f.name);
+    if (!old) continue;
+    f.apify_checked = true;
+    if (old.apify_email) { f.apify_email = old.apify_email; f.apify_status = old.apify_status || "" }
+  }
+}
+
 async function loadMore() {
-  const next = ALL.filter(c => !c.founders && !c.error).slice(0, PAGE);
+  const next = ALL.filter(needsFetch).slice(0, PAGE);
   if (!next.length) return progress();
   busy(true);
   const chunks = [];
   for (let i = 0; i < next.length; i += 10) chunks.push(next.slice(i, i + 10));
-  say("loadStatus", `Loading founders for ${next.length} companies…`);
+  say("loadStatus", `Loading founders and open roles for ${next.length} companies…`);
   await Promise.all(chunks.map(async chunk => {
     try {
       const res = await api({ action: "founders", slugs: chunk.map(c => c.slug).join(",") });
-      res.forEach((r, j) => Object.assign(chunk[j], r));
+      res.forEach((r, j) => mergeCompany(chunk[j], r));
     } catch (e) { chunk.forEach(c => c.error = `Couldn't load founders: ${e.message}`) }
     DATA = ALL.filter(c => c.founders || c.error);
     render();
@@ -297,7 +331,7 @@ $("list").addEventListener("click", e => {
   const txt = b.dataset.a === "body" ? d.querySelector("pre").textContent : b.dataset.a === "subject" ? d.querySelector(".subj").textContent : to ? best(to).email : "";
   navigator.clipboard.writeText(txt).then(() => { const o = b.textContent; b.textContent = "Copied"; setTimeout(() => b.textContent = o, 1200) });
 });
-["q", "st", "hideSent"].forEach(id => $(id).addEventListener(id === "q" ? "input" : "change", filter));
+["q", "st", "hideSent", "hiring"].forEach(id => $(id).addEventListener(id === "q" ? "input" : "change", filter));
 $("all").onclick = e => {
   const open = e.target.textContent === "Expand all";
   document.querySelectorAll("details").forEach(d => { if (d.style.display !== "none") d.open = open });

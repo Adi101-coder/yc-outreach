@@ -112,12 +112,26 @@ def resolves(domain):
         return False
 
 
+def open_jobs(props):
+    # jobPostings is on the same company page as the founders, next to props.company
+    jobs = []
+    for j in props.get("jobPostings") or []:
+        if not isinstance(j, dict) or j.get("isIncomplete"):
+            continue
+        path = j.get("url") or ""
+        jobs.append({"title": j.get("title") or "Open role",
+                     "url": "https://www.ycombinator.com" + path if path.startswith("/") else path})
+    return jobs
+
+
 def founders(slug):
     page = get(f"https://www.ycombinator.com/companies/{slug}")
     m = re.search(r'data-page="([^"]*)"', page or "")
     if not m:
         return {"slug": slug, "error": "Couldn't load this company's YC page"}
-    c = json.loads(html.unescape(m.group(1)))["props"]["company"]
+    props = json.loads(html.unescape(m.group(1)))["props"]
+    c = props["company"]
+    jobs = open_jobs(props)
     website = c.get("website") or ""  # always from YC, never from the client
     domain = domain_of(website)
     try:
@@ -134,7 +148,8 @@ def founders(slug):
                     "emails_found": [e for e in emails if first and e.split("@")[0].startswith(first)],
                     "email_guesses": guesses(name, domain) if dns else []})
     return {"slug": slug, "website": website, "domain": domain, "linkedin": c.get("linkedin_url") or "",
-            "twitter": c.get("twitter_url") or "", "site_emails": emails, "founders": out}
+            "twitter": c.get("twitter_url") or "", "site_emails": emails, "job_count": len(jobs), "jobs": jobs,
+            "founders": out}
 
 
 def route(query):
